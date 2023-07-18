@@ -1,37 +1,58 @@
 //create web server
 var express = require('express');
 var app = express();
-var fs = require("fs");
-
-app.get('/listUsers', function (req, res) {
-  fs.readFile( __dirname + "/" + "users.json", 'utf8', function (err, data) {
-    console.log( data );
-    res.end( data );
+var fs = require('fs');
+var bodyParser = require('body-parser');
+var urlencodedParser = bodyParser.urlencoded({ extended: false });
+var path = require('path');
+var router = express.Router();
+var mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost:27017/comments');
+var Schema = mongoose.Schema;
+var userSchema = new Schema({
+  name: String,
+  comment: String
+});
+var User = mongoose.model('User', userSchema);
+router.get('/comments', function(req, res) {
+  console.log("GET comments");
+  User.find({}, function(err, users) {
+    if (err) throw err;
+    console.log(users);
+    res.json(users);
   });
-})
-
-app.get('/addUser', function (req, res) {
-  // First read existing users.
-  fs.readFile( __dirname + "/" + "users.json", 'utf8', function (err, data) {
-    data = JSON.parse( data );
-    data["user4"] = user["user4"];
-    console.log( data );
-    res.end( JSON.stringify(data));
+});
+router.post('/comments', urlencodedParser, function(req, res) {
+  console.log("POST comments");
+  var newUser = User({
+    name: req.body.name,
+    comment: req.body.comment
   });
-})
-
-app.get('/:id', function (req, res) {
-  // First read existing users.
-  fs.readFile( __dirname + "/" + "users.json", 'utf8', function (err, data) {
-    var users = JSON.parse( data );
-    var user = users["user" + req.params.id]
-    console.log( user );
-    res.end( JSON.stringify(user));
+  newUser.save(function(err) {
+    if (err) throw err;
+    console.log('User saved successfully!');
+    res.json(newUser);
   });
-})
-
-var server = app.listen(8081, function () {
-  var host = server.address().address
-  var port = server.address().port
-  console.log("Example app listening at http://%s:%s", host, port)
-})
+});
+router.put('/comments/:id', urlencodedParser, function(req, res) {
+  console.log("PUT comments");
+  User.findById(req.params.id, function(err, user) {
+    if (err) throw err;
+    user.name = req.body.name;
+    user.comment = req.body.comment;
+    user.save(function(err) {
+      if (err) throw err;
+      console.log('User updated successfully!');
+      res.json(user);
+    });
+  });
+});
+router.delete('/comments/:id', urlencodedParser, function(req, res) {
+  console.log("DELETE comments");
+  User.findByIdAndRemove(req.params.id, function(err) {
+    if (err) throw err;
+    console.log('User deleted!');
+    res.json({ message: 'User deleted!' });
+  });
+});
+module.exports = router;
